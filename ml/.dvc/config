@@ -1,4 +1,4 @@
 [core]
-    remote = gdrive
-['remote "gdrive"']
-    url = gdrive://1J8B0iZwPIrf0c18eteSRrUe4JCvWqqj4
+    remote = dagshub
+['remote "dagshub"']
+    url = https://dagshub.com/LeMages/ReviewSense.dvc
