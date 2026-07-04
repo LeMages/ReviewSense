@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "5460:5432"
     environment:
       POSTGRES_USER: reviewsense
       POSTGRES_PASSWORD: devpass
@@ -31,8 +31,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    depends_on:
-      - ml-service
+    # depends_on: ml-service  # à décommenter quand le service sera défini
 
   grafana:
     image: grafana/grafana:latest
