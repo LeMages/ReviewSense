@@ -41,6 +41,9 @@ build/
 # MLflow
 mlruns/
 
+# ML training artifacts
+ml/models/
+
 # IDEs
 .vscode/
 .idea/
