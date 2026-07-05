@@ -1,17 +1,30 @@
+import { useSearchParams } from 'react-router-dom'
+
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export default function Login() {
+  const [searchParams] = useSearchParams()
+  const hasError = searchParams.get('error') !== null
+
   return (
-    <div className="flex min-h-[70vh] items-center justify-center">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Access your ReviewSense dashboard
+    <div className="-mx-4 -my-8 flex min-h-[calc(100vh-57px)] items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-white px-4 sm:-mx-6">
+      <div className="w-full max-w-sm rounded-2xl border border-indigo-100 bg-white/80 p-10 text-center shadow-xl shadow-indigo-100/50 backdrop-blur-sm">
+        <h1 className="text-3xl font-bold tracking-tight text-indigo-600">
+          ReviewSense
+        </h1>
+        <p className="mt-3 text-sm text-slate-500">
+          AI-powered sentiment analysis for product reviews
         </p>
+
+        {hasError && (
+          <p className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            Sign in failed. Please try again.
+          </p>
+        )}
 
         <a
           href={`${API_URL}/auth/google`}
-          className="mt-8 flex w-full items-center justify-center gap-3 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          className="mt-8 flex w-full items-center justify-center gap-3 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
