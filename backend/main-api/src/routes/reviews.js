@@ -2,6 +2,7 @@ const express = require('express');
 const { authJwt } = require('../middleware/authJwt');
 const { Review } = require('../models');
 const { callMLService } = require('../services/mlClient');
+const { notifyPrediction } = require('../services/notifier');
 
 const router = express.Router();
 
@@ -24,6 +25,14 @@ router.post('/', authJwt, async (req, res) => {
       confidence: prediction.confidence,
       language: language || 'en'
     });
+
+    notifyPrediction({
+      id: review.id,
+      text: review.text,
+      predictedSentiment: review.predictedSentiment,
+      confidence: review.confidence,
+      createdAt: review.createdAt
+    }).catch(() => {});
 
     return res.status(201).json({ review });
   } catch (err) {

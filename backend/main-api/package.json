@@ -7,8 +7,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "test": "jest tests/unit/ --coverage --passWithNoTests",
-    "test:integration": "jest tests/integration/ --coverage --passWithNoTests",
-    "test:all": "jest --coverage --passWithNoTests"
+    "test:integration": "jest tests/integration/ --coverage --passWithNoTests --runInBand",
+    "test:all": "jest --coverage --passWithNoTests --runInBand"
   },
   "keywords": [
     "reviewsense",
