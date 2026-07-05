@@ -9,6 +9,10 @@ name: CD Production
 # - MLFLOW_TRACKING_URI: DagsHub MLflow tracking URL
 # - MLFLOW_TRACKING_USERNAME: DagsHub username
 # - MLFLOW_TRACKING_PASSWORD: DagsHub access token
+# - RAILWAY_TOKEN_PRODUCTION: Railway project token scoped to the "production" environment
+#   (Railway dashboard -> Project Settings -> Tokens -> create a token for the production environment)
+# - PROD_MAIN_API_URL: public URL of the main-api service on production (for the smoke test)
+# - PROD_ML_SERVICE_URL: public URL of the ml-service service on production (for the smoke test)
 
 # Flow: cette pipeline se déclenche quand staging est mergée dans main.
 # 1. quality-gates évalue le modèle en stage "Staging" sur MLflow (accuracy + latence).
@@ -69,7 +73,31 @@ jobs:
 
       # Ce job ne s'exécute que si quality-gates a réussi : le modèle a déjà été
       # promu en stage "Production" sur MLflow par quality_gates.py.
-      # TODO: remplacer ce placeholder par le déploiement réel (ex: Railway/Render)
-      # de main-api, ml-service, notification-service et frontend.
-      - name: Deploy to production
-        run: echo "Deploy to production"
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy main-api to Railway (production)
+        run: railway up --service main-api --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Deploy ml-service to Railway (production)
+        run: railway up --service ml-service --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Deploy notification-service to Railway (production)
+        run: railway up --service notification-service --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Deploy frontend to Railway (production)
+        run: railway up --service frontend --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Smoke test production deployment
+        run: ./scripts/deploy-check.sh "$PROD_MAIN_API_URL" "$PROD_ML_SERVICE_URL"
+        env:
+          PROD_MAIN_API_URL: ${{ secrets.PROD_MAIN_API_URL }}
+          PROD_ML_SERVICE_URL: ${{ secrets.PROD_ML_SERVICE_URL }}

@@ -9,6 +9,10 @@ name: CD Staging
 # - MLFLOW_TRACKING_URI: DagsHub MLflow tracking URL
 # - MLFLOW_TRACKING_USERNAME: DagsHub username
 # - MLFLOW_TRACKING_PASSWORD: DagsHub access token
+# - RAILWAY_TOKEN_STAGING: Railway project token scoped to the "staging" environment
+#   (Railway dashboard -> Project Settings -> Tokens -> create a token for the staging environment)
+# - STAGING_MAIN_API_URL: public URL of the main-api service on staging (for the smoke test)
+# - STAGING_ML_SERVICE_URL: public URL of the ml-service service on staging (for the smoke test)
 
 on:
   push:
@@ -72,13 +76,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # TODO: remplacer ce placeholder par le déploiement réel sur Railway/Render
-      # (ex: railway up --service main-api / render deploy hook) pour chaque service
-      - name: Deploy to staging environment
-        run: echo "Deploy to staging environment"
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy main-api to Railway (staging)
+        run: railway up --service main-api --environment staging --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+      - name: Deploy ml-service to Railway (staging)
+        run: railway up --service ml-service --environment staging --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+      - name: Deploy notification-service to Railway (staging)
+        run: railway up --service notification-service --environment staging --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+      - name: Deploy frontend to Railway (staging)
+        run: railway up --service frontend --environment staging --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
 
       # TODO: remplacer par le pull réel du modèle MLflow en stage "Staging"
       # (ex: mlflow models download / mlflow artifacts download --stage Staging)
       # puis redéployer le service ml-service avec ce modèle
       - name: Deploy candidate model
         run: echo "Pulling MLflow model with stage=Staging and deploying to ml-service"
+
+      - name: Smoke test staging deployment
+        run: ./scripts/deploy-check.sh "$STAGING_MAIN_API_URL" "$STAGING_ML_SERVICE_URL"
+        env:
+          STAGING_MAIN_API_URL: ${{ secrets.STAGING_MAIN_API_URL }}
+          STAGING_ML_SERVICE_URL: ${{ secrets.STAGING_ML_SERVICE_URL }}

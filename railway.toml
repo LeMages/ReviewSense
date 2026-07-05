@@ -1,0 +1,51 @@
+# Configuration Railway de référence pour ReviewSense.
+#
+# Railway ne supporte pas nativement la définition de plusieurs services dans un
+# seul fichier pour un monorepo : chaque service listé ci-dessous doit être créé
+# séparément dans le dashboard Railway (New Service -> GitHub Repo), avec son
+# "Root Directory" pointant vers le dossier indiqué. Railway détecte alors
+# automatiquement le Dockerfile de ce dossier pour builder l'image.
+#
+# Ce fichier sert de documentation faisant foi pour les valeurs (port, healthcheck,
+# commande de démarrage) à reporter dans les Settings de chaque service Railway.
+# Voir le README ("Déploiement sur Railway") pour la procédure complète pas à pas.
+
+[[services]]
+name = "main-api"
+rootDirectory = "backend/main-api"
+dockerfilePath = "Dockerfile"
+port = 3000
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "ml-service"
+rootDirectory = "backend/ml-service"
+dockerfilePath = "Dockerfile"
+port = 8000
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "notification-service"
+rootDirectory = "backend/notification-service"
+dockerfilePath = "Dockerfile"
+port = 4000
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "frontend"
+rootDirectory = "frontend"
+dockerfilePath = "Dockerfile"
+port = 80
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
