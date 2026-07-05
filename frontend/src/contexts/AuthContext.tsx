@@ -5,49 +5,60 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import api from '../services/api'
+import { setToken as setSharedToken } from '../services/tokenStore'
 import type { User } from '../types'
 
 interface AuthContextValue {
   user: User | null
+  token: string | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (user: User, token: string) => void
+  login: (token: string) => Promise<void>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-const TOKEN_KEY = 'token'
-const USER_KEY = 'user'
-
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
+  // Keep the axios/Apollo request interceptors in sync with the token held
+  // here in React state (nothing is persisted to localStorage).
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    const storedUser = localStorage.getItem(USER_KEY)
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser) as User)
-    }
-    setIsLoading(false)
-  }, [])
+    setSharedToken(token)
+  }, [token])
 
-  const login = (newUser: User, token: string) => {
-    localStorage.setItem(TOKEN_KEY, token)
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser))
-    setUser(newUser)
+  const login = async (newToken: string) => {
+    setIsLoading(true)
+    try {
+      const { data } = await api.get<User>('/auth/me', {
+        headers: { Authorization: `Bearer ${newToken}` },
+      })
+      setToken(newToken)
+      setUser(data)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    setToken(null)
     setUser(null)
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: user !== null, isLoading, login, logout }}
+      value={{
+        user,
+        token,
+        isAuthenticated: Boolean(token && user),
+        isLoading,
+        login,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>
