@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const session = require('express-session');
-const passport = require('passport');
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@as-integrations/express4');
 
@@ -15,57 +14,12 @@ const authRoutes = require('./routes/auth');
 const reviewRoutes = require('./routes/reviews');
 const externalRoutes = require('./routes/external');
 const { authJwt, verifyToken, extractToken } = require('./middleware/authJwt');
+const { configurePassport, passport: configuredPassport } = require('./config/passport');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-let googleStrategy = null;
-try {
-  const GoogleStrategy = require('passport-google-oauth20').Strategy;
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    googleStrategy = new GoogleStrategy(
-      {
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback'
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const { User } = require('./models');
-          const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
-          const [user] = await User.findOrCreate({
-            where: { googleId: profile.id },
-            defaults: {
-              googleId: profile.id,
-              email: email || `${profile.id}@unknown.local`,
-              name: profile.displayName || 'Unknown'
-            }
-          });
-          done(null, user);
-        } catch (err) {
-          done(err, null);
-        }
-      }
-    );
-    passport.use(googleStrategy);
-    console.log('[auth] Google OAuth strategy loaded');
-  } else {
-    console.warn('[auth] GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google login disabled');
-  }
-} catch (err) {
-  console.warn('[auth] passport-google-oauth20 not available:', err.message);
-}
-
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser(async (id, done) => {
-  try {
-    const { User } = require('./models');
-    const user = await User.findByPk(id);
-    done(null, user);
-  } catch (err) {
-    done(err);
-  }
-});
+configurePassport();
 
 async function start() {
   const app = express();
@@ -84,8 +38,8 @@ async function start() {
     saveUninitialized: false
   }));
 
-  app.use(passport.initialize());
-  app.use(passport.session());
+  app.use(configuredPassport.initialize());
+  app.use(configuredPassport.session());
 
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'main-api' }));
 
