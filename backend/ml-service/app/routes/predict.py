@@ -22,13 +22,20 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     sentiment: str
     confidence: float
+    model_version: str
 
 
 @router.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
     if not model_loader.is_loaded:
         prediction_errors_total.inc()
-        return JSONResponse(status_code=503, content={"error": "No model loaded"})
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "No model loaded",
+                "detail": "The ML model is not available. Check MLflow configuration.",
+            },
+        )
 
     start_time = time.perf_counter()
     try:
@@ -47,4 +54,8 @@ def predict(request: PredictRequest):
         model_version=model_loader.model_version,
     )
 
-    return PredictResponse(sentiment=sentiment, confidence=confidence)
+    return PredictResponse(
+        sentiment=sentiment,
+        confidence=confidence,
+        model_version=model_loader.model_version or "unknown",
+    )

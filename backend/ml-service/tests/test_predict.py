@@ -14,7 +14,10 @@ def test_predict_no_model_returns_503():
     response = client.post("/predict", json={"text": "great product"})
 
     assert response.status_code == 503
-    assert response.json() == {"error": "No model loaded"}
+    assert response.json() == {
+        "error": "No model loaded",
+        "detail": "The ML model is not available. Check MLflow configuration.",
+    }
 
 
 def test_predict_returns_sentiment_and_confidence():
@@ -28,7 +31,11 @@ def test_predict_returns_sentiment_and_confidence():
         response = client.post("/predict", json={"text": "great product"})
 
     assert response.status_code == 200
-    assert response.json() == {"sentiment": "positive", "confidence": 0.92}
+    assert response.json() == {
+        "sentiment": "positive",
+        "confidence": 0.92,
+        "model_version": "fallback:local-pickle",
+    }
 
     model_loader.model = None
     model_loader.model_version = None
