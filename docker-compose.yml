@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    env_file: .env
     ports:
       - "5460:5432"
     environment:
@@ -17,6 +18,7 @@ services:
 
   mongo:
     image: mongo:7
+    env_file: .env
     ports:
       - "27017:27017"
     environment:
@@ -27,6 +29,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
+    env_file: .env
     ports:
       - "9090:9090"
     volumes:
@@ -35,6 +38,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    env_file: .env
     ports:
       - "3001:3000"
     environment:
