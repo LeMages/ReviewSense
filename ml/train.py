@@ -6,6 +6,12 @@ if sys.stdout.encoding is not None and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 import mlflow
 import mlflow.sklearn
 from sklearn.feature_extraction.text import TfidfVectorizer
