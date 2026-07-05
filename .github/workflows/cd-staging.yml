@@ -1,0 +1,84 @@
+name: CD Staging
+
+# Required GitHub Secrets:
+# - STAGING_DATABASE_URL: PostgreSQL connection string for staging
+# - STAGING_MONGO_URI: MongoDB connection string for staging
+# - GOOGLE_CLIENT_ID: Google OAuth client ID
+# - GOOGLE_CLIENT_SECRET: Google OAuth client secret
+# - JWT_SECRET: Secret key for JWT signing
+# - MLFLOW_TRACKING_URI: DagsHub MLflow tracking URL
+# - MLFLOW_TRACKING_USERNAME: DagsHub username
+# - MLFLOW_TRACKING_PASSWORD: DagsHub access token
+
+on:
+  push:
+    branches:
+      - staging
+
+env:
+  STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+  STAGING_MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+  MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+  MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+
+jobs:
+  test-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install main-api dependencies
+        working-directory: backend/main-api
+        run: npm ci
+
+      - name: Run backend unit tests
+        working-directory: backend/main-api
+        run: npm test
+
+      - name: Run backend integration tests
+        working-directory: backend/main-api
+        run: npm run test:integration --if-present
+
+      - name: Install ml-service dependencies
+        working-directory: backend/ml-service
+        run: uv sync
+
+      - name: Run ml-service tests
+        working-directory: backend/ml-service
+        run: uv run pytest
+
+      # TODO: ajouter les tests e2e (Playwright) une fois configurés
+
+  deploy-staging:
+    needs: test-full
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO: remplacer ce placeholder par le déploiement réel sur Railway/Render
+      # (ex: railway up --service main-api / render deploy hook) pour chaque service
+      - name: Deploy to staging environment
+        run: echo "Deploy to staging environment"
+
+      # TODO: remplacer par le pull réel du modèle MLflow en stage "Staging"
+      # (ex: mlflow models download / mlflow artifacts download --stage Staging)
+      # puis redéployer le service ml-service avec ce modèle
+      - name: Deploy candidate model
+        run: echo "Pulling MLflow model with stage=Staging and deploying to ml-service"
