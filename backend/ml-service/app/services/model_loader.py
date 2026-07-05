@@ -21,7 +21,9 @@ class ModelLoader:
     def load(self) -> None:
         if self._load_from_mlflow():
             return
-        self._load_fallback()
+        if self._load_fallback():
+            return
+        logger.warning("No model available. /predict will return 503.")
 
     def _load_from_mlflow(self) -> bool:
         try:
