@@ -7,7 +7,7 @@ const { WebSocketServer } = require('ws');
 const { handleConnection } = require('./ws');
 const notifyRouter = require('./routes/notify');
 
-const PORT = process.env.NOTIF_PORT || 4000;
+const PORT = process.env.PORT || 4000;
 
 const app = express();
 app.use(express.json());
