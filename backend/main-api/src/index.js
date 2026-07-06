@@ -73,16 +73,20 @@ async function start() {
     });
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[main-api] listening on http://localhost:${PORT} (env=${NODE_ENV})`);
-  });
-
-  try {
-    await sequelize.authenticate();
-    console.log('[db] PostgreSQL connection OK');
-  } catch (err) {
-    console.warn('[db] PostgreSQL connection failed (server still running):', err.message);
-  }
+  sequelize.sync({ alter: true })
+    .then(() => {
+      console.log('✅ Database synced');
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    })
+    .catch(err => {
+      console.error('❌ Database sync failed:', err.message);
+      // Lance quand même le serveur pour que /health reste accessible
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT} (without DB sync)`);
+      });
+    });
 }
 
 start().catch((err) => {
