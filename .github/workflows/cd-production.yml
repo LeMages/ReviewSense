@@ -1,0 +1,103 @@
+name: CD Production
+
+# Required GitHub Secrets:
+# - PROD_DATABASE_URL: PostgreSQL connection string for production
+# - PROD_MONGO_URI: MongoDB connection string for production
+# - GOOGLE_CLIENT_ID: Google OAuth client ID
+# - GOOGLE_CLIENT_SECRET: Google OAuth client secret
+# - JWT_SECRET: Secret key for JWT signing
+# - MLFLOW_TRACKING_URI: DagsHub MLflow tracking URL
+# - MLFLOW_TRACKING_USERNAME: DagsHub username
+# - MLFLOW_TRACKING_PASSWORD: DagsHub access token
+# - RAILWAY_TOKEN_PRODUCTION: Railway project token scoped to the "production" environment
+#   (Railway dashboard -> Project Settings -> Tokens -> create a token for the production environment)
+# - PROD_MAIN_API_URL: public URL of the main-api service on production (for the smoke test)
+# - PROD_ML_SERVICE_URL: public URL of the ml-service service on production (for the smoke test)
+
+# Flow: cette pipeline se déclenche quand staging est mergée dans main.
+# 1. quality-gates évalue le modèle en stage "Staging" sur MLflow (accuracy + latence).
+#    - Si les gates passent, quality_gates.py promeut le modèle en stage "Production".
+#    - Si les gates échouent, le script quitte avec exit 1 : le job est en échec.
+# 2. deploy-production a `needs: quality-gates` : si ce dernier échoue, GitHub Actions
+#    n'exécute PAS deploy-production. La production reste donc intacte, avec l'ancien
+#    modèle/code en place, tant que les quality gates ne sont pas satisfaits.
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+  PROD_MONGO_URI: ${{ secrets.PROD_MONGO_URI }}
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+  MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+  MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install ml-service dependencies
+        working-directory: backend/ml-service
+        run: uv sync
+
+      - name: Install dvc
+        run: uv tool install "dvc[gdrive]"
+
+      # Ce step échoue (exit 1) si l'accuracy ou la latence du modèle en stage
+      # "Staging" ne respecte pas les seuils. Dans ce cas, deploy-production
+      # ci-dessous ne s'exécute pas et la prod n'est pas touchée.
+      - name: Run quality gates
+        working-directory: backend/ml-service
+        run: uv run python ../../ml/quality_gates.py --min-accuracy 0.70 --max-latency-ms 500
+
+  deploy-production:
+    needs: quality-gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ce job ne s'exécute que si quality-gates a réussi : le modèle a déjà été
+      # promu en stage "Production" sur MLflow par quality_gates.py.
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy main-api to Railway (production)
+        run: railway up --service main-api --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Deploy ml-service to Railway (production)
+        run: railway up --service ml-service --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Deploy notification-service to Railway (production)
+        run: railway up --service notification-service --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Deploy frontend to Railway (production)
+        run: railway up --service frontend --environment production --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+
+      - name: Smoke test production deployment
+        run: ./scripts/deploy-check.sh "$PROD_MAIN_API_URL" "$PROD_ML_SERVICE_URL"
+        env:
+          PROD_MAIN_API_URL: ${{ secrets.PROD_MAIN_API_URL }}
+          PROD_ML_SERVICE_URL: ${{ secrets.PROD_ML_SERVICE_URL }}

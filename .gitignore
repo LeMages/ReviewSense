@@ -1,0 +1,55 @@
+# Node
+node_modules/
+dist/
+build/
+.vite/
+.next/
+.nuxt/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.egg-info/
+*.egg
+.eggs/
+.venv/
+venv/
+env/
+dist/
+build/
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# DVC
+.dvc/cache
+.dvc/tmp
+
+# MLflow
+mlruns/
+
+# ML training artifacts
+ml/models/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
