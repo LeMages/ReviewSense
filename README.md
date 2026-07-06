@@ -1,162 +1,438 @@
 # ReviewSense
 
-Sentiment analysis platform for product reviews.
+[![CI Dev](https://github.com/LeMages/ReviewSense/actions/workflows/ci-dev.yml/badge.svg)](https://github.com/LeMages/ReviewSense/actions/workflows/ci-dev.yml)
+[![CD Staging](https://github.com/LeMages/ReviewSense/actions/workflows/cd-staging.yml/badge.svg)](https://github.com/LeMages/ReviewSense/actions/workflows/cd-staging.yml)
+[![CD Production](https://github.com/LeMages/ReviewSense/actions/workflows/cd-production.yml/badge.svg)](https://github.com/LeMages/ReviewSense/actions/workflows/cd-production.yml)
+
+> Sentiment analysis platform for product reviews, built around a polyglot microservices
+> architecture (Node.js + Python + React) and shipped with a fully automated MLOps loop:
+> versioned data (DVC), tracked experiments (MLflow), gated model promotion, and
+> end-to-end CI/CD pipelines on GitHub Actions.
+
+ReviewSense lets users submit a product review, returns a sentiment label
+(`positive` / `negative` / `neutral`) with a confidence score, stores the prediction
+in PostgreSQL, and pushes a real-time notification over WebSocket. The classification
+model is trained on Amazon Reviews data, versioned with DVC, tracked in MLflow, and
+promoted to production only when it clears automated quality gates.
+
+---
+
+## Table of Contents
+
+1. [Architecture](#architecture)
+2. [Getting Started](#getting-started)
+3. [CI/CD Pipeline](#cicd-pipeline)
+4. [Model Promotion](#model-promotion)
+5. [Data Versioning](#data-versioning)
+6. [Monitoring](#monitoring)
+7. [API Documentation](#api-documentation)
+8. [Reproducibility](#reproducibility)
+9. [Team](#team)
+
+---
 
 ## Architecture
 
-## Setup
+ReviewSense is a monorepo that contains four independently deployable services plus a
+machine-learning training pipeline. The React frontend talks to a single backend
+(`main-api`) which orchestrates everything: persistence, OAuth, calls to the
+`ml-service` for prediction, and fan-out to the `notification-service` over WebSocket.
 
-## CI/CD
+```
+                                 ┌──────────────────────┐
+                                 │       Browser        │
+                                 │   (React + Vite)     │
+                                 └──────────┬───────────┘
+                                            │ HTTPS
+                                            ▼
+                                 ┌──────────────────────┐
+                                 │      main-api        │
+                                 │  (Node.js · Express) │
+                                 │  REST + GraphQL      │
+                                 └──┬────────┬──────────┘
+                                    │        │
+            ┌───────────────────────┘        └─────────────────────────┐
+            │ HTTP (predict)                                            │ HTTP (notify)
+            ▼                                                          ▼
+  ┌──────────────────────┐                                  ┌──────────────────────────┐
+  │     ml-service       │                                  │  notification-service    │
+  │  (Python · FastAPI)  │                                  │   (Node.js · WS + HTTP)  │
+  │  loads model from    │                                  │   real-time fan-out      │
+  │  MLflow (Production) │                                  └────────────┬─────────────┘
+  └──────────┬───────────┘                                               │ WebSocket
+             │                                                          ▼
+             │                                                  ┌──────────────────────┐
+             │                                                  │       Browser        │
+             │                                                  └──────────────────────┘
+             │
+             ▼
+   ┌────────────────────┐         ┌────────────────────┐
+   │   PostgreSQL 16    │         │     MongoDB 7      │
+   │  users · reviews   │         │  predictions log   │
+   └────────────────────┘         └────────────────────┘
 
-### GitHub Secrets Configuration
-
-The `cd-staging.yml` and `cd-production.yml` workflows read the following secrets from **Settings → Secrets and variables → Actions**:
-
-| Secret | Description | Where to find it |
-|---|---|---|
-| `STAGING_DATABASE_URL` | PostgreSQL connection string for staging | Your staging DB provider (e.g. Railway/Render dashboard) |
-| `STAGING_MONGO_URI` | MongoDB connection string for staging | Your staging Mongo provider (e.g. MongoDB Atlas connection string) |
-| `PROD_DATABASE_URL` | PostgreSQL connection string for production | Your production DB provider (e.g. Railway/Render dashboard) |
-| `PROD_MONGO_URI` | MongoDB connection string for production | Your production Mongo provider (e.g. MongoDB Atlas connection string) |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Google Cloud Console → APIs & Services → Credentials |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Google Cloud Console → APIs & Services → Credentials |
-| `JWT_SECRET` | Secret key for JWT signing | Generate a strong random value yourself (e.g. `openssl rand -base64 32`) |
-| `MLFLOW_TRACKING_URI` | DagsHub MLflow tracking URL | DagsHub repo → Remote → MLflow tracking URI |
-| `MLFLOW_TRACKING_USERNAME` | DagsHub username | DagsHub account settings |
-| `MLFLOW_TRACKING_PASSWORD` | DagsHub access token | DagsHub → Settings → Tokens |
-| `RAILWAY_TOKEN_STAGING` | Railway project token scoped to the `staging` environment | Railway dashboard → Project Settings → Tokens |
-| `RAILWAY_TOKEN_PRODUCTION` | Railway project token scoped to the `production` environment | Railway dashboard → Project Settings → Tokens |
-| `STAGING_MAIN_API_URL` | Public URL of `main-api` on staging (used by the post-deploy smoke test) | Railway → `main-api` service (staging) → Settings → Networking |
-| `STAGING_ML_SERVICE_URL` | Public URL of `ml-service` on staging (used by the post-deploy smoke test) | Railway → `ml-service` service (staging) → Settings → Networking |
-| `PROD_MAIN_API_URL` | Public URL of `main-api` on production (used by the post-deploy smoke test) | Railway → `main-api` service (production) → Settings → Networking |
-| `PROD_ML_SERVICE_URL` | Public URL of `ml-service` on production (used by the post-deploy smoke test) | Railway → `ml-service` service (production) → Settings → Networking |
-
-## Déploiement sur Railway
-
-Cette section décrit comment déployer les 4 services applicatifs (`main-api`, `ml-service`,
-`notification-service`, `frontend`) sur [Railway](https://railway.app), avec deux
-environnements distincts (`staging` et `production`). Le fichier `railway.toml` à la
-racine du repo documente la configuration cible (root directory, port, healthcheck)
-de chaque service — Railway ne permettant pas de créer plusieurs services depuis un
-seul fichier pour un monorepo, la création des services se fait manuellement dans le
-dashboard en suivant les étapes ci-dessous.
-
-### a. Créer le projet Railway et connecter le repo GitHub
-
-1. Sur [railway.app](https://railway.app), cliquer sur **New Project → Deploy from GitHub repo**.
-2. Sélectionner le repo `ReviewSense` (autoriser l'accès Railway si demandé).
-3. Railway crée un projet vide : ne pas laisser Railway auto-détecter un service à ce stade, on va créer chaque service manuellement (étape c).
-
-### b. Créer les 2 environnements "staging" et "production"
-
-1. Dans le projet Railway, ouvrir le sélecteur d'environnement (en haut, à côté du nom du projet).
-2. Un environnement `production` existe par défaut. Cliquer sur **New Environment**, nommer le second `staging`.
-3. Chaque environnement a ses propres variables, ses propres déploiements et son propre domaine public par service — les étapes c à f sont à répéter dans les deux environnements.
-
-### c. Configurer les 4 services
-
-Pour chaque service, dans l'environnement courant : **New → GitHub Repo** (ou **Empty Service** puis connecter le repo), puis dans **Settings** :
-
-| Service | Root Directory | Port cible | Healthcheck |
-|---|---|---|---|
-| `main-api` | `backend/main-api` | `3000` | `/health` |
-| `ml-service` | `backend/ml-service` | `8000` | `/health` |
-| `notification-service` | `backend/notification-service` | `4000` | `/` |
-| `frontend` | `frontend` | `80` | `/` |
-
-Railway détecte automatiquement le `Dockerfile` présent dans chaque `Root Directory`
-et builde l'image avec. Dans **Settings → Networking**, activer un domaine public
-(`Generate Domain`) et vérifier que le port cible correspond à la colonne "Port cible"
-ci-dessus (les 4 Dockerfiles respectent `$PORT` ou exposent le port documenté).
-
-### d. Ajouter les bases de données
-
-Deux options, à choisir par environnement :
-
-- **PostgreSQL** : dans chaque environnement, **New → Database → Add PostgreSQL**. Railway
-  fournit une variable `DATABASE_URL` sur le plugin — recopier sa valeur (ou la référencer
-  avec `${{Postgres.DATABASE_URL}}`) dans la variable `DATABASE_URL` du service `main-api`.
-- **MongoDB** : soit **New → Database → Add MongoDB** sur Railway, soit un cluster
-  [MongoDB Atlas](https://www.mongodb.com/atlas) gratuit (M0) — recommandé pour rester
-  dans le tier gratuit Railway. Dans ce cas, créer un cluster Atlas par environnement
-  (ou une base par environnement dans le même cluster) et copier la connection string
-  dans la variable `MONGO_URI` de `main-api` et `ml-service`.
-
-### e. Configurer les variables d'environnement (12-factor)
-
-Chaque service ne reçoit que les variables dont il a besoin — pas de fichier `.env`
-partagé entre services en production, conformément au principe 12-factor "Config".
-Ces variables se configurent dans **Settings → Variables** de chaque service, séparément
-par environnement (`staging` et `production` ont des valeurs différentes : bases de
-données distinctes, `GOOGLE_CALLBACK_URL`/`FRONTEND_URL` distincts, etc.).
-
-**`main-api`**
-
-| Variable | Valeur |
-|---|---|
-| `DATABASE_URL` | connection string Postgres de l'environnement |
-| `MONGO_URI` | connection string Mongo de l'environnement |
-| `JWT_SECRET` | secret fort, différent entre staging et production |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | credentials OAuth Google |
-| `GOOGLE_CALLBACK_URL` | URL publique Railway de `main-api` + `/auth/google/callback` |
-| `FRONTEND_URL` | URL publique Railway de `frontend` |
-| `ML_SERVICE_URL` | URL publique Railway de `ml-service` |
-| `NOTIF_SERVICE_URL` | URL publique Railway de `notification-service` |
-
-**`ml-service`**
-
-| Variable | Valeur |
-|---|---|
-| `MONGO_URI` | connection string Mongo de l'environnement |
-| `MLFLOW_TRACKING_URI` / `MLFLOW_TRACKING_USERNAME` / `MLFLOW_TRACKING_PASSWORD` | credentials DagsHub MLflow |
-| `MODEL_NAME` | nom du modèle enregistré (`reviewsense-sentiment`) |
-| `MODEL_STAGE` | `Staging` pour l'environnement staging, `Production` pour l'environnement production |
-
-**`notification-service`** : aucune variable requise (le port est fourni par Railway via `PORT`).
-
-**`frontend`** : build-time uniquement (Vite), aucune variable runtime requise — l'app appelle `main-api` depuis le navigateur.
-
-### f. Configurer le déploiement automatique
-
-Pour chaque service, dans **Settings → Source** :
-
-- Dans l'environnement **staging** : brancher le service sur la branche `staging` du repo (**Deploy Triggers → Branch = `staging`**). Chaque push sur `staging` redéploie automatiquement les 4 services de cet environnement.
-- Dans l'environnement **production** : brancher le service sur la branche `main` (**Deploy Triggers → Branch = `main`**). Chaque push sur `main` (donc chaque merge de `staging` vers `main`) redéploie automatiquement les 4 services de cet environnement.
-
-En complément du déploiement automatique déclenché par Railway lui-même sur push,
-les workflows `cd-staging.yml` et `cd-production.yml` déclenchent aussi un déploiement
-via la Railway CLI (`railway up --service ... --environment ...`) authentifié avec
-`RAILWAY_TOKEN_STAGING` / `RAILWAY_TOKEN_PRODUCTION`, puis exécutent
-`scripts/deploy-check.sh` pour vérifier que le déploiement répond correctement.
-
-### Vérifier un déploiement manuellement
-
-Une fois les services déployés (staging ou production), vérifier qu'ils répondent :
-
-```bash
-./scripts/deploy-check.sh https://<url-main-api> https://<url-ml-service>
+   ┌────────────────────┐         ┌────────────────────┐         ┌────────────────────┐
+   │     Prometheus     │◀────────│  ml-service /metrics│        │   MLflow (DagsHub) │
+   │  scrapes /metrics  │         │  main-api /metrics │        │  experiments +     │
+   └─────────┬──────────┘         └────────────────────┘        │  model registry     │
+             │                                                   └────────────────────┘
+             ▼
+   ┌────────────────────┐
+   │      Grafana       │
+   │  pre-built dashboard│
+   └────────────────────┘
 ```
 
-Le script attend `401` sur `GET /auth/me` et `POST /api/v1/external/predict` (l'app
-tourne et l'authentification est bien appliquée) et `200` sur `GET /health` du ml-service.
+### Tech stack per component
+
+| Component | Language | Framework | Storage | Port |
+|---|---|---|---|---|
+| `frontend` | TypeScript | React 19, Vite, Tailwind, Apollo Client, Recharts | – | `5173` (dev) / `80` (docker) |
+| `main-api` | JavaScript | Node.js 20, Express, Apollo Server, Passport (Google OAuth), Sequelize | PostgreSQL 16 | `3000` |
+| `ml-service` | Python | Python 3.12, FastAPI, scikit-learn (TF-IDF + Logistic Regression), prometheus-fastapi-instrumentator | MongoDB 7 (prediction log) | `8000` |
+| `notification-service` | JavaScript | Node.js 20, Express, `ws` (WebSocket) | – | `4000` |
+| `ml` (training) | Python | Python 3.12, scikit-learn, MLflow, DVC | DVC remote (S3/GDrive) | – |
+| `monitoring` | – | Prometheus, Grafana (pre-provisioned dashboard) | Prometheus TSDB | `9090` / `3001` |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Make sure the following tools are installed on your machine:
+
+- **Docker** ≥ 24.x and **Docker Compose** v2 (the project ships a single `docker-compose.yml`)
+- **Node.js 20** (LTS) — for the `frontend` and `main-api` services
+- **Python 3.12** with [uv](https://docs.astral.sh/uv/) — for the `ml-service` and the `ml/` training pipeline
+- **DVC** — for data versioning (`pip install dvc` or `uv tool install "dvc[gdrive]"`)
+
+### Clone & setup
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/LeMages/ReviewSense.git
+cd reviewsense
+
+# 2. Create your local environment file
+cp .env.example .env
+# -> open .env and fill in the missing values:
+#    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_SECRET,
+#    MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
+#    (a .env with dev defaults for everything else is already provided)
+
+# 3. Boot the full stack
+docker compose up --build
+```
+
+The first build pulls and compiles the four Docker images, then starts every service in
+the right order (`postgres` and `mongo` first, then `ml-service`, `main-api` and
+`notification-service`, then `frontend`, then the observability stack).
+
+### Access the running services
+
+| Service | URL | Notes |
+|---|---|---|
+| Frontend (React app) | http://localhost:5173 | Login with Google (OAuth) |
+| Main API (REST + GraphQL) | http://localhost:3000 | `/health`, `/auth/*`, `/api/v1/*`, `/graphql` |
+| ML Service (FastAPI) | http://localhost:8000 | `/health`, `/predict`, `/metrics` |
+| Notification Service | http://localhost:4000 (HTTP) / `ws://localhost:4000` (WS) | |
+| Prometheus | http://localhost:9090 | metrics scraping |
+| Grafana | http://localhost:3001 | login `admin` / `admin` |
+
+---
+
+## CI/CD Pipeline
+
+We follow a strict **Git Flow** with three long-lived branches and one short-lived
+branch per change:
+
+```
+feature/*  ──PR──▶  dev  ──PR──▶  staging  ──PR──▶  main
+   (CI)            (CI)            (CD staging)        (CD production)
+```
+
+| Branch | Trigger | Pipeline | Purpose |
+|---|---|---|---|
+| `feature/*` | Pull request to `dev` | `ci-dev.yml` | Run unit tests + type-check + Docker build for every service. Branch is **not deployable** until it passes. |
+| `dev` | Push | `ci-dev.yml` | Continuous integration, no deployment. Acts as the integration trunk. |
+| `staging` | Push | `cd-staging.yml` | Full test suite (backend unit + integration + ML tests). Pre-prod validation gate. |
+| `main` | Push (after `staging` PR) | `cd-production.yml` | Runs the **quality gates** on the Staging model in MLflow, promotes it to Production if it passes, then deploys the four services to Railway (production) and runs the smoke test. |
+
+### Pipeline details
+
+- **`ci-dev.yml`** — runs on every PR to `dev`:
+  1. `test-main-api` — `npm ci && npm test` (Jest)
+  2. `test-ml-service` — `uv sync && uv run pytest tests/ -v`
+  3. `lint-frontend` — `npm ci && npx tsc --noEmit`
+  4. `build-docker` — depends on the three jobs above; builds the four Docker images
+     (`main-api`, `ml-service`, `notification-service`, `frontend`) with
+     `docker/build-push-action@v6` to catch any Dockerfile regression.
+
+- **`cd-staging.yml`** — runs on every push to `staging`:
+  1. `test-full` — runs the **full** test suite (unit + integration for the backend, full
+     pytest for the ML service) to validate the candidate before it reaches production.
+  2. *(The actual staging deployment is performed locally via `docker compose` — the
+     workflow above only runs the test gate.)*
+
+- **`cd-production.yml`** — runs on every push to `main` (merge of `staging` into `main`):
+  1. `quality-gates` — runs `ml/quality_gates.py --min-accuracy 0.70 --max-latency-ms 500`
+     against the **Staging** model in MLflow. If accuracy < 70 % **or** average
+     latency > 500 ms, the job exits with `1` and the deployment is aborted.
+  2. `deploy-production` — has `needs: quality-gates`, so it only runs when the gates
+     pass. It deploys the four services to Railway (production) and finally calls
+     `scripts/deploy-check.sh` for the smoke test (`GET /auth/me` → `401`,
+     `POST /api/v1/external/predict` → `401`, `GET /ml/health` → `200`).
+
+### Flow diagram
+
+```
+   ┌──────────┐  PR   ┌─────┐  push  ┌──────────┐  PR  ┌──────────┐  push  ┌──────┐
+   │ feature/*│──────▶│ dev │────────▶│ staging  │─────▶│  main    │───────▶│ Prod │
+   └────┬─────┘       └──┬──┘        └────┬─────┘       └────┬─────┘        └──────┘
+        │                │                │                  │
+        ▼                ▼                ▼                  ▼
+   ┌─────────┐       ┌─────────┐     ┌──────────────┐    ┌──────────────┐
+   │ CI Dev  │       │ CI Dev  │     │ CD Staging   │    │ CD Prod      │
+   │ tests + │       │ tests + │     │ full tests   │    │ quality-     │
+   │ build   │       │ build   │     │              │    │ gates →      │
+   └─────────┘       └─────────┘     └──────────────┘    │ deploy →     │
+                                                          │ smoke test   │
+                                                          └──────────────┘
+```
+
+---
 
 ## Model Promotion
 
+The model lifecycle has three stages: training → Staging → Production. **A model is
+never moved to Production by hand**: the transition is fully automated and gated.
+
+### Pipeline
+
+1. **Train** — `python ml/train.py` reads the dataset (versioned with DVC), trains a
+   TF-IDF + Logistic Regression pipeline, logs params, metrics, the model artifact and
+   two tags (`data_version`, `git_commit`) to **MLflow**, and registers the model under
+   the name `reviewsense-sentiment` — every run lands in stage `None` first.
+2. **Promote to Staging** — a maintainer (or a bot) transitions the desired version
+   from `None` to `Staging` via the MLflow UI or the MLflow CLI.
+3. **Quality gates** — `ml/quality_gates.py` (invoked by `cd-production.yml` on every
+   push to `main`) loads the latest `Staging` version, evaluates it on the test split,
+   and measures inference latency. The mandatory thresholds are:
+   - **accuracy ≥ 0.70** on the held-out test set
+   - **average inference latency ≤ 500 ms** (measured over 100 predictions)
+4. **Promote to Production** — if both gates pass, the script calls
+   `MlflowClient.transition_model_version_stage(..., stage="Production",
+   archive_existing_versions=True)` so the previous Production version is archived and
+   the new one becomes the live model served by `ml-service`.
+5. **Deploy** — `cd-production.yml` redeploys `ml-service` (and the other services) to
+   Railway only **after** the promotion succeeded.
+
+### What happens when a gate fails
+
+If accuracy or latency does not meet the threshold, `quality_gates.py` prints the
+failing metric and exits with code `1`. Because `deploy-production` declares
+`needs: quality-gates`, GitHub Actions **skips it entirely** — no service is
+redeployed, and the version currently in MLflow stage `Production` (and therefore the
+model served in production) is left untouched. The new model stays in `Staging` until
+a subsequent training run produces a model that clears the gates, or until an operator
+manually investigates.
+
+---
+
+## Data Versioning
+
+The training corpus (Amazon Reviews) is tracked with **DVC**: raw and processed data
+files are not committed to Git, but a small set of `.dvc` pointer files are. The actual
+data lives in a DVC remote (S3 or Google Drive — see `ml/.dvc/config`) and is fetched
+on demand.
+
+```
+ml/
+├── .dvc/                # DVC internals + remote config
+├── data/                # raw / processed datasets (gitignored, tracked by DVC)
+│   ├── reviews.dvc
+│   └── ...
+├── data_utils.py
+├── download_data.py
+├── train.py
+├── evaluate.py
+└── quality_gates.py
+```
+
+### Reproduce a training run locally
+
+```bash
+# 1. Make sure the DVC remote is configured (see ml/.dvc/config)
+dvc pull                  # downloads the exact data version pinned by *.dvc files
+
+# 2. Train a new model version
+python ml/train.py        # logs the run + model to MLflow, registers it in the registry
+```
+
+The current DVC data hash is recorded as the `data_version` tag on every MLflow run, so
+any model in the registry can be traced back to the exact dataset it was trained on.
+
+---
+
 ## Monitoring
 
-Prometheus and Grafana are provisioned via `docker-compose.yml` and configuration files in `monitoring/`.
-
-Once the stack is running (`docker compose up`), the dashboards are available at:
+The stack ships with a turnkey Prometheus + Grafana setup that is started by
+`docker compose up` (no extra configuration needed).
 
 | Service | URL | Login |
 |---|---|---|
-| Prometheus | http://localhost:9090 | - |
+| Prometheus | http://localhost:9090 | – |
 | Grafana | http://localhost:3001 | `admin` / `admin` |
 
-Grafana is pre-provisioned with:
-- A **Prometheus** datasource pointing to `http://prometheus:9090` (`monitoring/grafana/provisioning/datasources/datasource.yml`)
-- The **ReviewSense Production Monitoring** dashboard (`monitoring/grafana/provisioning/dashboards/reviewsense.json`), with 4 panels: Request Volume, Prediction Latency (p95), Error Rate, and Backend Health.
+### Exposed metrics
 
-Prometheus scrapes `/metrics` from `ml-service:8000` and `main-api:3000` (see `monitoring/prometheus.yml`). The main API needs `prom-client` wired up to expose its `/metrics` endpoint before its metrics will appear.
+- **From `ml-service`** (`/metrics`, exposed by `prometheus-fastapi-instrumentator` +
+  custom metrics in `backend/ml-service/app/metrics.py`):
+  - `prediction_requests_total{sentiment}` — counter, labelled by predicted class
+  - `prediction_latency_seconds` — histogram, end-to-end prediction latency
+  - `prediction_errors_total` — counter (no model loaded, internal failures, …)
+  - default FastAPI HTTP metrics (`http_requests_total`, `http_request_duration_seconds`, …)
+
+- **From `main-api`** (`/metrics`, defined in `monitoring/prometheus.yml`): standard
+  Node.js process / HTTP metrics via `prom-client`.
+
+- **Scraping configuration**: `monitoring/prometheus.yml` declares the two scrape jobs
+  above with a `15s` interval.
+
+### Grafana dashboard
+
+Grafana is pre-provisioned (`monitoring/grafana/provisioning/`) with:
+
+- a **Prometheus** datasource pointing at `http://prometheus:9090`,
+- the **ReviewSense Production Monitoring** dashboard
+  (`monitoring/grafana/provisioning/dashboards/reviewsense.json`) with four panels:
+  **Request Volume**, **Prediction Latency (p95)**, **Error Rate**, **Backend Health**.
+
+> _Screenshots of the Grafana dashboard and the React UI will be added shortly._
+
+---
+
+## API Documentation
+
+The platform exposes **two API surfaces** from `main-api`:
+- a **REST** API under `/api/v1` and `/auth` (used by the React app and external clients),
+- a **GraphQL** API under `/graphql` (used by the analytics dashboard in the React app).
+
+All endpoints require a valid JWT in the `Authorization: Bearer <token>` header
+**except** the Google OAuth entry points and the health check.
+
+### REST endpoints
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/health` | – | Liveness probe |
+| `GET` | `/auth/google` | – | Start Google OAuth flow |
+| `GET` | `/auth/google/callback` | – | OAuth callback, returns JWT via redirect |
+| `GET` | `/auth/me` | JWT | Get the currently authenticated user |
+| `POST` | `/auth/logout` | – | Invalidate the session |
+| `POST` | `/api/v1/reviews` | JWT | Create a review, run sentiment analysis, persist + notify |
+| `GET` | `/api/v1/reviews` | JWT | List the current user's reviews (filter by `sentiment`, paginate with `limit` / `offset`) |
+| `GET` | `/api/v1/reviews/:id` | JWT | Fetch a single review (ownership-checked) |
+| `POST` | `/api/v1/external/predict` | JWT | Stateless sentiment prediction (no persistence, no notification) |
+
+### GraphQL endpoint
+
+`POST /graphql` — introspection is enabled outside of `production`. Main queries:
+
+```graphql
+query {
+  me { id email name role }
+  recentReviews(limit: 10) {
+    id text predictedSentiment confidence language createdAt
+  }
+  reviewStats { positive negative neutral total }
+  sentimentDistribution(days: 30) { date count sentiment }
+}
+```
+
+### Example calls with `curl`
+
+**Health check (no JWT required):**
+
+```bash
+curl -s http://localhost:3000/health
+# {"status":"ok","service":"main-api"}
+```
+
+**Anonymous request to a protected endpoint (expect `401`):**
+
+```bash
+curl -i http://localhost:3000/auth/me
+# HTTP/1.1 401 Unauthorized
+```
+
+**Sentiment prediction with a valid JWT:**
+
+```bash
+TOKEN="eyJhbGciOi..."   # obtained via /auth/google/callback
+
+# Stateless prediction (no DB write, no notification)
+curl -X POST http://localhost:3000/api/v1/external/predict \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "This product is absolutely fantastic, I love it!"}'
+
+# {"sentiment":"positive","confidence":0.93,"model_version":"3"}
+
+# Create a review (persists + notifies)
+curl -X POST http://localhost:3000/api/v1/reviews \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Terrible quality, broke after two days.", "language": "en"}'
+```
+
+---
 
 ## Reproducibility
+
+Every artifact produced by the platform can be traced back to the exact inputs that
+generated it. We rely on a three-way anchor:
+
+| Anchor | Where it lives | What it captures |
+|---|---|---|
+| **DVC data version** | MLflow run tag `data_version` | The exact dataset hash used for training |
+| **Git commit** | MLflow run tag `git_commit` | The exact source code used for training |
+| **MLflow experiment** | `mlflow.tracking_uri` (DagsHub) | Params, metrics, model artifact, signature |
+
+This means **any model in the registry can be replayed bit-for-bit** by checking out
+the corresponding Git commit, restoring the matching DVC data version, and re-running
+`ml/train.py`.
+
+### Replay a historical training run
+
+```bash
+# 1. Check out the commit that produced the model
+git checkout <commit-sha>
+
+# 2. Restore the exact data version pinned by the .dvc files
+dvc checkout
+
+# 3. Re-run training — the new run will have identical params and a matching data_version
+python ml/train.py
+```
+
+The new run appears in MLflow with the same `data_version` and `git_commit` tags as
+the original (the latter will also be identical, because the working tree is pinned),
+making side-by-side comparison trivial.
+
+---
+
+## Team
+
+| Name | Role |
+|---|---|
+| **Loïc** | Backend / DevOps |
+| **Aurélien** | Backend / DevOps |
+| **Benjamin** | Frontend / ML |
+
+---
+
+## License
+
+This project is released for educational purposes.
