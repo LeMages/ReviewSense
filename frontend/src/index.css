@@ -1,7 +1,78 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-body {
-  @apply bg-white text-slate-800;
+@theme {
+  --color-background: hsl(240 6% 4%);
+  --color-foreground: hsl(210 40% 98%);
+  --color-card: hsl(240 4% 7%);
+  --color-card-foreground: hsl(210 40% 98%);
+  --color-popover: hsl(240 4% 7%);
+  --color-popover-foreground: hsl(210 40% 98%);
+  --color-primary: hsl(239 84% 67%);
+  --color-primary-foreground: hsl(210 40% 98%);
+  --color-secondary: hsl(240 4% 12%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+  --color-muted: hsl(240 4% 12%);
+  --color-muted-foreground: hsl(215 16% 65%);
+  --color-accent: hsl(240 4% 12%);
+  --color-accent-foreground: hsl(210 40% 98%);
+  --color-destructive: hsl(350 89% 60%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-border: hsl(240 5% 18%);
+  --color-input: hsl(240 5% 18%);
+  --color-ring: hsl(239 84% 67%);
+  --color-chart-1: hsl(190 90% 54%);
+  --color-chart-2: hsl(239 84% 67%);
+  --color-chart-3: hsl(350 89% 65%);
+  --color-chart-4: hsl(262 83% 73%);
+  --color-chart-5: hsl(43 87% 56%);
+  --color-positive: hsl(190 90% 54%);
+  --color-negative: hsl(350 89% 65%);
+  --color-neutral: hsl(215 16% 65%);
+  --radius: 0.5rem;
+  --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-foreground);
 }

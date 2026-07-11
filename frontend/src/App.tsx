@@ -5,9 +5,12 @@ import {
   Navigate,
   useNavigate,
   useSearchParams,
+  useLocation,
 } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import PageTransition from './components/PageTransition'
 import { useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -47,38 +50,84 @@ function AuthCallback() {
   }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center text-slate-500">
-      Signing you in...
+    <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+      <div className="flex items-center gap-3">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        Signing you in...
+      </div>
     </div>
   )
 }
 
 function App() {
+  const location = useLocation()
+
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/submit"
-          element={
-            <ProtectedRoute>
-              <SubmitReview />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/api-docs" element={<ApiDocs />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route
+            path="/"
+            element={
+              <PageTransition>
+                <Home />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PageTransition>
+                <Login />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/auth/callback"
+            element={
+              <PageTransition>
+                <AuthCallback />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <PageTransition>
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/submit"
+            element={
+              <PageTransition>
+                <ProtectedRoute>
+                  <SubmitReview />
+                </ProtectedRoute>
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/api-docs"
+            element={
+              <PageTransition>
+                <ApiDocs />
+              </PageTransition>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <PageTransition>
+                <NotFound />
+              </PageTransition>
+            }
+          />
+        </Routes>
+      </AnimatePresence>
     </Layout>
   )
 }
