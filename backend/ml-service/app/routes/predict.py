@@ -1,6 +1,6 @@
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -26,7 +26,7 @@ class PredictResponse(BaseModel):
 
 
 @router.post("/predict", response_model=PredictResponse)
-def predict(request: PredictRequest):
+def predict(request: PredictRequest, background_tasks: BackgroundTasks):
     if not model_loader.is_loaded:
         prediction_errors_total.inc()
         return JSONResponse(
@@ -47,7 +47,8 @@ def predict(request: PredictRequest):
         prediction_latency_seconds.observe(time.perf_counter() - start_time)
 
     prediction_requests_total.labels(sentiment=sentiment).inc()
-    log_prediction(
+    background_tasks.add_task(
+        log_prediction,
         text=request.text,
         sentiment=sentiment,
         confidence=confidence,
