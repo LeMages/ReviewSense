@@ -41,6 +41,12 @@ services:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
       MODEL_NAME: ${MODEL_NAME}
       MODEL_STAGE: ${MODEL_STAGE}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
 
   notification-service:
     build: ./backend/notification-service
@@ -54,9 +60,12 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
-      - mongo
-      - ml-service
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+      ml-service:
+        condition: service_healthy
     environment:
       PORT: 3000
       DATABASE_URL: postgres://reviewsense:devpass@postgres:5432/reviewsense
