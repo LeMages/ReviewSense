@@ -2,7 +2,7 @@ import { ApolloClient, InMemoryCache, HttpLink, from, gql } from '@apollo/client
 import { setContext } from '@apollo/client/link/context'
 import { getToken } from './tokenStore'
 
-const uri = import.meta.env.VITE_GRAPHQL_URL ?? 'http://localhost:3000/graphql'
+const uri = window.__CONFIG__?.GRAPHQL_URL || import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
 const httpLink = new HttpLink({ uri })
 
