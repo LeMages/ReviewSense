@@ -59,13 +59,16 @@ function StatCard({
 
 export default function Dashboard() {
   const { data: statsData, loading: statsLoading, error: statsError } =
-    useQuery<ReviewStatsData>(GET_REVIEW_STATS)
+    useQuery<ReviewStatsData>(GET_REVIEW_STATS, {
+      fetchPolicy: 'network-only',
+    })
   const {
     data: distributionData,
     loading: distributionLoading,
     error: distributionError,
   } = useQuery<SentimentDistributionData>(GET_SENTIMENT_DISTRIBUTION, {
     variables: { days: 30 },
+    fetchPolicy: 'network-only',
   })
 
   const stats = statsData?.reviewStats
