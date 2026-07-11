@@ -8,7 +8,7 @@ function sleep(ms) {
 }
 
 async function requestPrediction(text) {
-  const response = await axios.post(`${ML_SERVICE_URL}/predict`, { text }, { timeout: 10000 });
+  const response = await axios.post(`${ML_SERVICE_URL}/predict`, { text }, { timeout: 30000 });
   const data = response.data || {};
   return {
     sentiment: data.sentiment || null,
