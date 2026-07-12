@@ -15,6 +15,11 @@ in PostgreSQL, and pushes a real-time notification over WebSocket. The classific
 model is trained on Amazon Reviews data, versioned with DVC, tracked in MLflow, and
 promoted to production only when it clears automated quality gates.
 
+The frontend features a custom **Neural Pulse** dark design system built with
+**Tailwind CSS v4**, **shadcn/ui**, **Framer Motion** animations, and **Recharts**
+for interactive data visualization — blending a tech/AI aesthetic with a
+production-grade user experience.
+
 ---
 
 ## Table of Contents
@@ -87,7 +92,7 @@ machine-learning training pipeline. The React frontend talks to a single backend
 
 | Component | Language | Framework | Storage | Port |
 |---|---|---|---|---|
-| `frontend` | TypeScript | React 19, Vite, Tailwind, Apollo Client, Recharts | – | `5173` (dev) / `80` (docker) |
+| `frontend` | TypeScript | React 19, Vite, Tailwind CSS 4, shadcn/ui, Framer Motion, Apollo Client, Recharts, Sonner | – | `5173` (dev) / `80` (docker) |
 | `main-api` | JavaScript | Node.js 20, Express, Apollo Server, Passport (Google OAuth), Sequelize | PostgreSQL 16 | `3000` |
 | `ml-service` | Python | Python 3.12, FastAPI, scikit-learn (TF-IDF + Logistic Regression), prometheus-fastapi-instrumentator | MongoDB 7 (prediction log) | `8000` |
 | `notification-service` | JavaScript | Node.js 20, Express, `ws` (WebSocket) | – | `4000` |
@@ -121,8 +126,23 @@ cp .env.example .env
 #    MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, MLFLOW_TRACKING_PASSWORD
 #    (a .env with dev defaults for everything else is already provided)
 
-# 3. Boot the full stack
+# 3. Install frontend dependencies
+cd frontend
+npm install
+cd ..
+
+# 4. Boot the full stack
 docker compose up --build
+```
+
+### Run the frontend standalone (for UI development)
+
+```bash
+cd frontend
+npm run dev        # starts Vite dev server at http://localhost:5173
+npm run build      # production build → dist/
+npm run lint       # run oxlint
+npm run test:e2e   # Playwright E2E tests
 ```
 
 The first build pulls and compiles the four Docker images, then starts every service in
