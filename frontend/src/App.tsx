@@ -14,6 +14,7 @@ import PageTransition from './components/PageTransition'
 import { useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import SeeReviews from './pages/SeeReviews'
 import SubmitReview from './pages/SubmitReview'
 import ApiDocs from './pages/ApiDocs'
 import NotFound from './pages/NotFound'
@@ -96,6 +97,16 @@ function App() {
               <PageTransition>
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              </PageTransition>
+            }
+          />
+          <Route
+            path="/reviews"
+            element={
+              <PageTransition>
+                <ProtectedRoute>
+                  <SeeReviews />
                 </ProtectedRoute>
               </PageTransition>
             }
