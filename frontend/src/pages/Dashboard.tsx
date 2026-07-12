@@ -16,7 +16,6 @@ import {
 import { BarChart3 } from 'lucide-react'
 import { GET_REVIEW_STATS, GET_SENTIMENT_DISTRIBUTION } from '../services/graphql'
 import StatCard from '../components/StatCard'
-import NeuralPulse from '../components/NeuralPulse'
 import ActivityFeed from '../components/ActivityFeed'
 import EmptyState from '../components/EmptyState'
 import { Skeleton } from '../components/ui/skeleton'
@@ -107,15 +106,6 @@ export default function Dashboard() {
     return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
   }, [distributionData])
 
-  const dominantSentiment = useMemo(() => {
-    if (!stats) return null
-    const max = Math.max(stats.positive, stats.negative, stats.neutral)
-    if (max === 0) return null
-    if (stats.positive === max) return 'positive'
-    if (stats.negative === max) return 'negative'
-    return 'neutral'
-  }, [stats])
-
   const hasData = stats && stats.total > 0
   const total = stats?.total ?? 0
 
@@ -141,7 +131,7 @@ export default function Dashboard() {
         An overview of sentiment across all submitted reviews.
       </p>
 
-      <motion.section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" variants={sectionVariant} initial="hidden" animate="visible">
+      <motion.section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3" variants={sectionVariant} initial="hidden" animate="visible">
         <StatCard
           label="Total Reviews"
           value={total}
@@ -158,13 +148,6 @@ export default function Dashboard() {
           value={stats?.negative ?? 0}
           color={SENTIMENT_COLORS.negative}
         />
-        <motion.div
-          className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm"
-          whileHover={{ y: -2 }}
-        >
-          <p className="text-sm font-medium text-muted-foreground">Live Pulse</p>
-          <NeuralPulse sentiment={dominantSentiment} />
-        </motion.div>
       </motion.section>
 
       <motion.section className="mt-10" variants={sectionVariant} initial="hidden" whileInView="visible" viewport={{ once: true }}>
@@ -176,16 +159,20 @@ export default function Dashboard() {
           {distributionChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={distributionChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
+                <YAxis allowDecimals={false} stroke="var(--color-muted-foreground)" fontSize={12} />
                 <Tooltip
+                  cursor={{ fill: 'var(--color-muted)', opacity: 0.3 }}
                   contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '0.5rem',
-                    color: 'hsl(var(--card-foreground))',
+                    color: 'var(--color-card-foreground)',
                   }}
+                  labelStyle={{ color: 'var(--color-card-foreground)' }}
+                  itemStyle={{ color: 'var(--color-card-foreground)' }}
+                  formatter={(value: number) => [value, 'Reviews']}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {distributionChartData.map((entry) => (
@@ -211,15 +198,15 @@ export default function Dashboard() {
           {dailyVolume.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyVolume}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="date" stroke="var(--color-muted-foreground)" fontSize={12} />
+                <YAxis allowDecimals={false} stroke="var(--color-muted-foreground)" fontSize={12} />
                 <Tooltip
                   contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '0.5rem',
-                    color: 'hsl(var(--card-foreground))',
+                    color: 'var(--color-card-foreground)',
                   }}
                 />
                 <Line type="monotone" dataKey="positive" name="Positive" stroke={SENTIMENT_COLORS.positive} strokeWidth={2} dot={false} />
