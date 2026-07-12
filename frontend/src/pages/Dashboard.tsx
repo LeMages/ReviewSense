@@ -159,16 +159,20 @@ export default function Dashboard() {
           {distributionChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={distributionChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
+                <YAxis allowDecimals={false} stroke="var(--color-muted-foreground)" fontSize={12} />
                 <Tooltip
+                  cursor={{ fill: 'var(--color-muted)', opacity: 0.3 }}
                   contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '0.5rem',
-                    color: 'hsl(var(--card-foreground))',
+                    color: 'var(--color-card-foreground)',
                   }}
+                  labelStyle={{ color: 'var(--color-card-foreground)' }}
+                  itemStyle={{ color: 'var(--color-card-foreground)' }}
+                  formatter={(value: number) => [value, 'Reviews']}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {distributionChartData.map((entry) => (
@@ -194,15 +198,15 @@ export default function Dashboard() {
           {dailyVolume.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyVolume}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="date" stroke="var(--color-muted-foreground)" fontSize={12} />
+                <YAxis allowDecimals={false} stroke="var(--color-muted-foreground)" fontSize={12} />
                 <Tooltip
                   contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '0.5rem',
-                    color: 'hsl(var(--card-foreground))',
+                    color: 'var(--color-card-foreground)',
                   }}
                 />
                 <Line type="monotone" dataKey="positive" name="Positive" stroke={SENTIMENT_COLORS.positive} strokeWidth={2} dot={false} />
