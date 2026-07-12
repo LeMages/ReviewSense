@@ -16,7 +16,6 @@ import {
 import { BarChart3 } from 'lucide-react'
 import { GET_REVIEW_STATS, GET_SENTIMENT_DISTRIBUTION } from '../services/graphql'
 import StatCard from '../components/StatCard'
-import NeuralPulse from '../components/NeuralPulse'
 import ActivityFeed from '../components/ActivityFeed'
 import EmptyState from '../components/EmptyState'
 import { Skeleton } from '../components/ui/skeleton'
@@ -107,15 +106,6 @@ export default function Dashboard() {
     return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
   }, [distributionData])
 
-  const dominantSentiment = useMemo(() => {
-    if (!stats) return null
-    const max = Math.max(stats.positive, stats.negative, stats.neutral)
-    if (max === 0) return null
-    if (stats.positive === max) return 'positive'
-    if (stats.negative === max) return 'negative'
-    return 'neutral'
-  }, [stats])
-
   const hasData = stats && stats.total > 0
   const total = stats?.total ?? 0
 
@@ -141,7 +131,7 @@ export default function Dashboard() {
         An overview of sentiment across all submitted reviews.
       </p>
 
-      <motion.section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" variants={sectionVariant} initial="hidden" animate="visible">
+      <motion.section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3" variants={sectionVariant} initial="hidden" animate="visible">
         <StatCard
           label="Total Reviews"
           value={total}
@@ -158,13 +148,6 @@ export default function Dashboard() {
           value={stats?.negative ?? 0}
           color={SENTIMENT_COLORS.negative}
         />
-        <motion.div
-          className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm"
-          whileHover={{ y: -2 }}
-        >
-          <p className="text-sm font-medium text-muted-foreground">Live Pulse</p>
-          <NeuralPulse sentiment={dominantSentiment} />
-        </motion.div>
       </motion.section>
 
       <motion.section className="mt-10" variants={sectionVariant} initial="hidden" whileInView="visible" viewport={{ once: true }}>
